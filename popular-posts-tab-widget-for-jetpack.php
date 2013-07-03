@@ -5,13 +5,14 @@
  * Description: Shows a tabbed widget for most popular, most commented and latest blog posts. Most popular posts tab uses data from Jetpack Stats module.
  * Author: Ryann Micua
  * Author URI: http://pogidude.com/about
- * Version: 1.1
+ * Version: 1.2
+ * Stable Tag: 1.2
  * License: GPL2+
  * Text Domain: pptwj
  * Domain Path: /languages/
  */
 
-define( 'PPTWJ_VERSION', '1.1');
+define( 'PPTWJ_VERSION', '1.2');
 //e.g. /var/www/example.com/wordpress/wp-content/plugins/plugin-slug
 define( "PPTWJ_DIR", plugin_dir_path( __FILE__ ) );
 //e.g. http://example.com/wordpress/wp-content/plugins/plugin-slug
@@ -41,6 +42,7 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 	protected $popular_days = 0;
 	private static $_days = 0;
 	private static $_stats_enabled = false;
+	private static $current_instance = null;
 	const _tablename = 'popularpostsdata';
 	
 	function Popular_Posts_Tabbed_Widget_Jetpack () {
@@ -71,6 +73,8 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 			'thumb_size' => 45, 
 			'order' => self::$_stats_enabled ? 'pop' : 'latest', 
 			'days' => '60', 
+			'show_views' => '',
+			'show_date' => '',
 			'pop' => self::$_stats_enabled ? 'off' : 'on',
 			'latest' => '', 
 			'comments' => '',
@@ -118,9 +122,14 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 
 		$instance = $old_instance;
 		
+		$instance['title'] = esc_attr( $new_instance['title'] );
 		$instance['number'] = intval( $new_instance['number'] );
 		$instance['thumb_size'] = intval( $new_instance['thumb_size'] );
 		//$instance['days'] = intval( $new_instance['days'] );
+
+		$instance['show_date'] = isset( $new_instance['show_date'] ) ? esc_attr( $new_instance['show_date'] ) : '';
+		$instance['show_views'] = isset( $new_instance['show_views'] ) ? esc_attr( $new_instance['show_views'] ) : '';
+
 		$instance['order'] = esc_attr( $new_instance['order'] );
 		$instance['pop'] = isset( $new_instance['pop'] ) ? esc_attr( $new_instance['pop'] ) : '';
 		$instance['latest'] = isset( $new_instance['latest'] ) ? esc_attr( $new_instance['latest'] ) : '';
@@ -157,9 +166,14 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 	----------------------------------------*/
 
    function form( $instance ) { 
-		
+
 		$instance = wp_parse_args( (array) $instance, $this->defaults );
-	?>
+		$title = isset( $instance['title'] ) ?esc_attr($instance['title']) : '';
+		?>
+		<p>
+			<label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:', PPTWJ_DOMAIN); ?></label>
+			<input type="text" name="<?php echo $this->get_field_name('title'); ?>"  value="<?php echo $title; ?>" class="widefat" id="<?php echo $this->get_field_id('title'); ?>" />
+		</p>
 		<p>
 		   <label for="<?php echo $this->get_field_id( 'number' ); ?>"><?php _e( 'Number of posts:', PPTWJ_DOMAIN ); ?>
 		   <input class="widefat" id="<?php echo $this->get_field_id( 'number' ); ?>" name="<?php echo $this->get_field_name( 'number' ); ?>" type="text" value="<?php echo isset( $instance['number'] ) ? $instance['number'] : ''; ?>" />
@@ -170,6 +184,15 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 		   <input class="widefat" id="<?php echo $this->get_field_id( 'thumb_size' ); ?>" name="<?php echo $this->get_field_name( 'thumb_size' ); ?>" type="text" value="<?php echo isset( $instance['thumb_size'] ) ? $instance['thumb_size'] : ''; ?>" />
 		   </label>
 		</p>
+
+		<!--p>
+			<label><input id="<?php echo $this->get_field_id( 'show_date' ); ?>" name="<?php echo $this->get_field_name( 'show_date' ); ?>" type="checkbox" <?php checked( $instance['show_date'], 'on' ); ?>> <?php _e( 'Display Publish Date', PPTWJ_DOMAIN ); ?></label>
+		</p-->
+
+		<p>
+			<label><input id="<?php echo $this->get_field_id( 'show_views' ); ?>" name="<?php echo $this->get_field_name( 'show_views' ); ?>" type="checkbox" <?php checked( $instance['show_views'], 'on' ); ?>> <?php _e( 'Display Page Views', PPTWJ_DOMAIN ); ?></label>
+		</p>
+
 		<?php /*
 		<p>
 		   <label for="<?php echo $this->get_field_id( 'days' ); ?>"><?php _e( 'Popular limit (days):', PPTWJ_DOMAIN ); ?>
@@ -187,19 +210,19 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 		    </select>
 		</p>
 		<p><strong><?php _e( 'Hide Tabs:', PPTWJ_DOMAIN ); ?></strong></p>
-		
+
 		<?php if( !self::$_stats_enabled ) : ?>
 			<div class="pptwj-require-error" style="background: #FFEBE8; border: 1px solid #c00; color: #333; margin: 1em 0; padding: 3px 5px; "><?php _e('Popular Posts tab requires the <a href="http://wordpress.org/extend/plugins/jetpack/" target="_blank">Jetpack plugin</a> to be activated and connected. It also requires the Jetpack Stats module to be enabled.', PPTWJ_DOMAIN ); ?></div>
 		<?php endif; ?>
-		
+
 		<p>
-		<input id="<?php echo $this->get_field_id( 'pop' ); ?>" name="<?php echo $this->get_field_name( 'pop' ); ?>" type="checkbox" <?php checked( $instance['pop'], 'on' ); ?>> <?php _e( 'Popular', PPTWJ_DOMAIN ); ?></input>
+			<label><input id="<?php echo $this->get_field_id( 'pop' ); ?>" name="<?php echo $this->get_field_name( 'pop' ); ?>" type="checkbox" <?php checked( $instance['pop'], 'on' ); ?>> <?php _e( 'Popular', PPTWJ_DOMAIN ); ?></label>
 		</p>
 		<p>
-		   <input id="<?php echo $this->get_field_id( 'latest' ); ?>" name="<?php echo $this->get_field_name( 'latest' ); ?>" type="checkbox" <?php checked( $instance['latest'], 'on' ); ?>> <?php _e( 'Latest', PPTWJ_DOMAIN ); ?></input>
+		   <label><input id="<?php echo $this->get_field_id( 'latest' ); ?>" name="<?php echo $this->get_field_name( 'latest' ); ?>" type="checkbox" <?php checked( $instance['latest'], 'on' ); ?>> <?php _e( 'Latest', PPTWJ_DOMAIN ); ?></label>
 		</p>
 		<p>
-		   <input id="<?php echo $this->get_field_id( 'comments' ); ?>" name="<?php echo $this->get_field_name( 'comments' ); ?>" type="checkbox" <?php checked( $instance['comments'], 'on' ); ?>> <?php _e( 'Comments', PPTWJ_DOMAIN ); ?></input>
+		   <label><input id="<?php echo $this->get_field_id( 'comments' ); ?>" name="<?php echo $this->get_field_name( 'comments' ); ?>" type="checkbox" <?php checked( $instance['comments'], 'on' ); ?>> <?php _e( 'Comments', PPTWJ_DOMAIN ); ?></label>
 		</p>
 
 		<p>
@@ -228,18 +251,20 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 				<option value="daily" <?php selected( $comments_range, 'daily' ); ?>><?php _e('Daily', PPTWJ_DOMAIN); ?></option>
 			</select>
 		</p>
-	<?php
+		<?php
+
 	} // End form()
 
 
 	function widget($args, $instance) {
 
 		$instance = wp_parse_args( (array) $instance, $this->defaults );
+		self::$current_instance = $instance;
 
 		extract( $args );
 	
 		$number = isset( $instance['number'] ) ? $instance['number'] : 5;
-		$thumb_size = empty( $instance['thumb_size'] ) ? 45 : intval( $instance['thumb_size'] );
+		$thumb_size = intval( $instance['thumb_size'] );
 		$order = isset( $instance['order'] ) ? $instance['order'] : 'pop';
 		//$days = isset( $instance['days'] ) ? $instance['days'] : '';
 		$pop = ''; if ( array_key_exists( 'pop', $instance ) ) $pop = $instance['pop'];
@@ -254,9 +279,18 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 			'numberposts' => $number,
 			'thumb' => $thumb_size
 		);
+
+		$title = $instance['title'];
 		?>
 	
 			<?php echo $before_widget; ?>
+
+			<?php
+			/* If a title was input by the user, display it. */
+			if ( !empty( $title ) ){ 
+				echo $before_title . apply_filters( 'widget_title', $title, $instance, $this->id_base ) . $after_title;
+			} ?>
+
 			<div class="pptwj-tabs-wrap">
 	
 				<ul class="tab-links">
@@ -350,6 +384,7 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 		
 		ob_start();
 		$count = 1;
+		$date_format = get_option('date_format');
 		foreach($latest as $post) :
 			setup_postdata($post);
 			if( $count++ % 2 ){ 
@@ -370,12 +405,16 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 					$postImage = pptwj_get_the_image($imageArgs); 
 				}
 				?>
-				<?php if( !empty( $postImage['src'] ) ): ?>
-				<a class="post-thumb" href="<?php the_permalink(); ?>"><img src="<?php echo $postImage['src']; ?>" alt="<?php echo $postImage['alt']; ?>" width="<?php echo $postImage['width']; ?>" height="<?php echo $postImage['height']; ?>"/></a>
+				<?php if( !empty( $postImage['src'] ) ): 
+					$css = "width: {$size}px; height: {$height}px;";
+				?>
+				<a class="post-thumb" href="<?php the_permalink(); ?>"><img src="<?php echo $postImage['src']; ?>" alt="<?php echo $postImage['alt']; ?>" width="<?php echo $postImage['width']; ?>" height="<?php echo $postImage['height']; ?>" style="<?php echo $css; ?>"/></a>
 				<?php endif; ?>
 				
 				<a class="item-title" title="<?php the_title_attribute(); ?>" href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-				<span class="meta"><?php the_time( get_option( 'date_format' ) ); ?></span>
+
+				<?php echo self::item_meta(get_the_time($date_format, $post)); ?>
+
 				<div class="fix"></div>
 			</li>
 		<?php endforeach;
@@ -431,11 +470,13 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 				$postImage = pptwj_get_the_image($imageArgs, $p['id']); 
 			}
 			?>
-			<?php if( !empty( $postImage['src'] ) ): ?>
-				<a class="post-thumb" href="<?php echo $p['permalink']; ?>"><img src="<?php echo $postImage['src']; ?>" alt="<?php echo $postImage['alt']; ?>" width="<?php echo $postImage['width']; ?>" height="<?php echo $postImage['height']; ?>"/></a>
+			<?php if( !empty( $postImage['src'] ) ): 
+				$css = "width: {$size}px; height: {$size}px;";
+			?>
+				<a class="post-thumb" href="<?php echo $p['permalink']; ?>"><img src="<?php echo $postImage['src']; ?>" alt="<?php echo $postImage['alt']; ?>" width="<?php echo $postImage['width']; ?>" height="<?php echo $postImage['height']; ?>" style="<?php echo $css; ?>"/></a>
 			<?php endif; ?>
 			<a class="item-title" title="<?php echo $p['title']; ?>" href="<?php echo $p['permalink']; ?>"><?php echo $p['title']; ?></a>
-			<span class="meta"><?php echo $p['postdate']; ?></span>
+			<?php echo self::item_meta($p['postdate']); ?>
 			<div class="fix"></div>
 		</li>
 		<?php endforeach;
@@ -492,11 +533,13 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 				$postImage = pptwj_get_the_image($imageArgs, $p['id']); 
 			}
 			?>
-			<?php if( !empty( $postImage['src'] ) ): ?>
-				<a class="post-thumb" href="<?php echo $p['permalink']; ?>"><img src="<?php echo $postImage['src']; ?>" alt="<?php echo $postImage['alt']; ?>" width="<?php echo $postImage['width']; ?>" height="<?php echo $postImage['height']; ?>"/></a>
+			<?php if( !empty( $postImage['src'] ) ): 
+				$css = "width: {$size}px; height: {$size}px;";
+			?>
+				<a class="post-thumb" href="<?php echo $p['permalink']; ?>"><img src="<?php echo $postImage['src']; ?>" alt="<?php echo $postImage['alt']; ?>" width="<?php echo $postImage['width']; ?>" height="<?php echo $postImage['height']; ?>" style="<?php echo $css; ?>"/></a>
 			<?php endif; ?>
 			<a class="item-title" title="<?php echo $p['title']; ?>" href="<?php echo $p['permalink']; ?>"><?php echo $p['title']; ?></a>
-			<span class="meta"><?php echo $p['postdate']; ?></span>
+			<?php echo self::item_meta($p['postdate'], $p['views']); ?>
 			<div class="fix"></div>
 		</li>
 		<?php endforeach;
@@ -556,6 +599,10 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 		$posts = array();
 		$counter = 0;
 		foreach( $top_posts as $top_post ){
+
+			//should only trigger for homepage
+			if(empty($top_post['post_id']))
+				continue;
 			
 			$post = get_post( $top_post['post_id'] );
 
@@ -830,6 +877,29 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 		return $posts;
 	}
 	
+	/**
+	 * Display the meta data for each list item
+	 * @param  string $date
+	 * @return string html
+	 */
+	static function item_meta($date = '', $views = ''){
+		$instance = self::$current_instance;
+		$output = '';
+
+		//this will not show views with 0 count
+		if(!empty($views) && $instance['show_views'] == 'on'){
+			$views_text = $views > 1 ? ' views' : ' view';
+			$output .= '<span class="pptwj-views-count">(' . $views . $views_text. ')</span>';
+		}
+
+		if($date && $instance['show_date'] == 'on'){
+			$output .= empty($output) ? '' : ' '; //add space
+			$output .= '<span class="pptwj-date">' . $date . '</span>';
+		}
+
+		return '<span class="meta">'. $output . '</span>';
+	}
+
 	static function now(){
 		return current_time('mysql');
 	}
@@ -839,7 +909,6 @@ class Popular_Posts_Tabbed_Widget_Jetpack extends WP_Widget {
 		if( $data['action'] != 'pptwj_tabwidget_list' ) return;
 		
 		$thumb = intval( $data['thumb'] );
-		$thumb = !empty( $thumb ) ? $thumb : 45;
 		$numberposts = intval( $data['numberposts'] );
 		
 		switch( $data['time'] ){
